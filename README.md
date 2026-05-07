@@ -6,7 +6,7 @@ All processing happens in your browser. No data is uploaded to any server.
 
 ## Usage
 
-The app is live at **(https://scottdunnflux.github.io/k4_event_viewer/)[https://scottdunnflux.github.io/k4_event_viewer/]**
+The app is live at **[https://scottdunnflux.github.io/k4_event_viewer/](https://scottdunnflux.github.io/k4_event_viewer/)**
 
 1. Download the K4 diagnostics package from the **K4 Server** section of K4 Admin.
 2. Extract the package and locate the `k4_event*.log` files in the K4 Server Logs folder.
