@@ -712,7 +712,7 @@ body { display: flex; flex-direction: column; }
       <span>Date range: <span id="dateRange">—</span></span>
     </div>
     <div class="upload-actions">
-      <button class="btn btn-sm" id="addMoreBtn">Add More Files</button>
+      <button class="btn btn-sm" id="addMoreBtn">Add Files</button>
       <button class="btn btn-sm btn-danger" id="resetBtn">Reset</button>
     </div>
   </div>
@@ -2366,7 +2366,7 @@ function updateUI() {
   } else {
     dom.uploadArea.classList.add('has-files');
     dom.uploadArea.querySelector('h2').textContent = 'Add More Files';
-    dom.uploadArea.querySelector('p').textContent = 'Drag and drop additional k4_event*.log files';
+    dom.uploadArea.querySelector('p').textContent = 'Drag and drop k4_event*.log files';
     collapseUploadArea();
   }
 
