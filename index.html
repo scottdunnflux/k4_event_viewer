@@ -1,0 +1,2557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K4 Event Viewer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+<style>
+/* === RESET & BASE === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+  background: #f5f7f0;
+  line-height: 1.4;
+}
+
+/* === HEADER === */
+.header {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-left { display: flex; align-items: baseline; gap: 12px; }
+.header h1 { font-size: 20px; font-weight: 600; color: #2c3e50; }
+.header .attribution { font-size: 12px; color: #888; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.btn {
+  padding: 6px 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: #f0f0f0; border-color: #aaa; }
+.btn-primary { background: #3498db; color: #fff; border-color: #2980b9; }
+.btn-primary:hover { background: #2980b9; }
+.btn-danger { background: #e74c3c; color: #fff; border-color: #c0392b; }
+.btn-danger:hover { background: #c0392b; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* === UPLOAD AREA === */
+.upload-section { padding: 20px; }
+.upload-area {
+  border: 2px dashed #bbb;
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  background: #fff;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+.upload-area.dragover { border-color: #3498db; background: #eaf4fd; }
+.upload-area.has-files { padding: 15px 20px; border-style: solid; border-color: #ddd; }
+.upload-area h2 { font-size: 18px; color: #555; margin-bottom: 8px; font-weight: 500; }
+.upload-area p { color: #888; font-size: 13px; margin-bottom: 12px; }
+.upload-area input[type="file"] { display: none; }
+.upload-actions { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 8px; }
+
+/* === STATUS LINE === */
+.status-line {
+  padding: 8px 20px;
+  font-size: 13px;
+  color: #555;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  display: none;
+}
+.status-line.visible { display: flex; align-items: center; justify-content: space-between; }
+.status-line .info { display: flex; gap: 16px; }
+.status-line .info span { display: flex; align-items: center; gap: 4px; }
+.status-count { font-weight: 600; color: #2c3e50; }
+
+/* === TABLE CONTAINER === */
+.table-section {
+  padding: 0 20px 20px;
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.table-section.visible { display: flex; }
+
+/* === COLUMN TOGGLES === */
+.column-toggles {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.column-toggles-header {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #555;
+  user-select: none;
+}
+.column-toggles-header::before {
+  content: '\25B6';
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+.column-toggles.expanded .column-toggles-header::before { transform: rotate(90deg); }
+.column-toggles-body {
+  display: none;
+  padding: 8px 12px;
+  border-top: 1px solid #eee;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.column-toggles.expanded .column-toggles-body { display: flex; }
+.column-toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+}
+.column-toggle-item input { margin: 0; }
+.column-toggle-item.toggle-all { font-weight: 600; margin-right: 12px; padding-right: 12px; border-right: 1px solid #ddd; }
+
+/* === FILTER BAR === */
+.filter-bar {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.filter-group label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.filter-group input[type="date"],
+.filter-group input[type="time"],
+.filter-group input[type="text"] {
+  padding: 5px 8px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #333;
+  background: #fff;
+}
+.filter-group input[type="date"] { width: 140px; }
+.filter-group input[type="time"] { width: 110px; }
+.filter-group input[type="text"] { width: 160px; }
+.filter-group input[type="text"].wide { width: 200px; }
+.filter-group input:focus { outline: none; border-color: #3498db; }
+.filter-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* === MULTI-SELECT DROPDOWN === */
+.multi-select {
+  position: relative;
+  display: inline-block;
+}
+.multi-select-btn {
+  padding: 5px 24px 5px 8px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #333;
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 100px;
+  text-align: left;
+  position: relative;
+}
+.multi-select-btn::after {
+  content: '\25BC';
+  font-size: 8px;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+}
+.multi-select-btn.has-selection { border-color: #3498db; color: #2c3e50; font-weight: 500; }
+.multi-select-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 200px;
+  max-height: 280px;
+  margin-top: 2px;
+}
+.multi-select-dropdown.open { display: block; }
+.multi-select-search {
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 1px solid #eee;
+  width: 100%;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.multi-select-actions {
+  display: flex;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 11px;
+}
+.multi-select-actions a {
+  color: #3498db;
+  cursor: pointer;
+  text-decoration: none;
+}
+.multi-select-actions a:hover { text-decoration: underline; }
+.multi-select-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.multi-select-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.multi-select-item:hover { background: #f5f8ff; }
+.multi-select-item input { margin: 0; flex-shrink: 0; }
+.multi-select-item.hidden { display: none; }
+
+/* === TABLE GRID === */
+.table-header-row {
+  display: grid;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-bottom: 2px solid #ccc;
+  border-radius: 4px 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  min-height: 32px;
+  align-items: center;
+  overflow: hidden;
+}
+.table-header-cell {
+  padding: 6px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+.table-header-cell:hover { background: #e9ecef; }
+.col-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 2;
+}
+.col-resize-handle:hover,
+.col-resize-handle.active { background: #3498db; }
+body.col-resizing { cursor: col-resize !important; user-select: none !important; }
+body.col-resizing * { cursor: col-resize !important; }
+
+.scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background: #fff;
+  scrollbar-gutter: stable;
+}
+.scroll-spacer { position: relative; }
+.row-pool { position: absolute; left: 0; right: 0; }
+
+.table-row {
+  display: grid;
+  min-height: 28px;
+  align-items: center;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.table-row:hover { background: #f5f8ff; }
+.table-row.alt { background: #fafbfc; }
+.table-row.alt:hover { background: #f0f4ff; }
+
+.table-cell {
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.table-cell.data-cell {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+  font-size: 11px;
+  color: #777;
+  cursor: pointer;
+}
+.table-cell.data-cell:hover { color: #333; }
+
+/* === GROUPING CONTROLS === */
+.grouping-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.grouping-bar label { display: flex; align-items: center; gap: 5px; cursor: pointer; color: #555; }
+.grouping-bar input[type="checkbox"] { margin: 0; }
+.grouping-window {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #777;
+  font-size: 12px;
+}
+.grouping-window input[type="range"] { width: 100px; accent-color: #3498db; }
+.grouping-window .window-val { font-weight: 600; color: #2c3e50; min-width: 24px; text-align: center; }
+
+/* === GROUP ROW === */
+.table-row.group-row {
+  background: #eef4fb;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 1px solid #d6e4f0;
+}
+.table-row.group-row:hover { background: #e0ecf8; }
+.group-expand-icon {
+  display: inline-block;
+  width: 14px;
+  font-size: 10px;
+  color: #3498db;
+  flex-shrink: 0;
+  text-align: center;
+  transition: transform 0.15s;
+}
+.group-expand-icon.expanded { transform: rotate(90deg); }
+.group-label { color: #2c3e50; }
+.group-count {
+  display: inline-block;
+  background: #3498db;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+}
+.table-row.child-row {
+  background: #f9fbfd;
+  border-left: 3px solid #d6e4f0;
+}
+.table-row.child-row:hover { background: #f0f5fc; }
+.table-row.child-row .table-cell:first-child { padding-left: 24px; }
+
+/* === SESSION TRACKING === */
+.table-cell.session-cell {
+  cursor: pointer;
+  color: #3498db;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.15s;
+}
+.table-cell.session-cell:hover { text-decoration-color: #3498db; }
+.session-banded { border-left: 3px solid var(--session-color, transparent); }
+
+/* === SETTINGS BAR === */
+.settings-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.settings-bar label { display: flex; align-items: center; gap: 5px; cursor: pointer; color: #555; }
+.settings-bar input[type="checkbox"] { margin: 0; }
+
+/* === ARTICLE LABELS === */
+.group-label-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.group-label-edit {
+  cursor: text;
+}
+.group-label-edit:hover { text-decoration: underline; text-decoration-style: dashed; }
+.group-label-custom { font-style: italic; color: #8e44ad; }
+.group-label-revert {
+  cursor: pointer;
+  font-size: 11px;
+  color: #999;
+  padding: 0 3px;
+  border-radius: 3px;
+  line-height: 1;
+}
+.group-label-revert:hover { color: #e74c3c; background: #fef0ef; }
+.group-label-input {
+  font-size: 13px;
+  padding: 1px 4px;
+  border: 1px solid #3498db;
+  border-radius: 3px;
+  outline: none;
+  width: 200px;
+  font-family: inherit;
+}
+.manage-labels-list {
+  list-style: none;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.manage-labels-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+.manage-labels-list li:hover { background: #f9f9f9; }
+.manage-labels-list .ml-original { color: #888; font-size: 11px; margin-top: 2px; }
+.manage-labels-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* === DETAIL MODAL === */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.visible { display: flex; }
+.modal-panel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  max-width: 700px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #eee;
+}
+.modal-header h3 { font-size: 15px; font-weight: 600; color: #2c3e50; }
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  padding: 0 4px;
+  line-height: 1;
+}
+.modal-close:hover { color: #333; }
+.modal-body {
+  padding: 18px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.detail-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+}
+.detail-type-badge.mail { background: #e8f5e9; color: #2e7d32; }
+.detail-type-badge.login { background: #e3f2fd; color: #1565c0; }
+.detail-type-badge.fileids { background: #fff3e0; color: #e65100; }
+.detail-type-badge.related { background: #f3e5f5; color: #7b1fa2; }
+.detail-type-badge.comment { background: #fce4ec; color: #c62828; }
+.detail-type-badge.config { background: #efebe9; color: #4e342e; }
+.detail-type-badge.raw { background: #f5f5f5; color: #616161; }
+.detail-kv { margin-bottom: 10px; }
+.detail-kv .dk-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+.detail-kv .dk-value { color: #333; word-break: break-word; }
+.detail-kv .dk-value.mono {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+  font-size: 12px;
+  background: #f8f9fa;
+  padding: 8px 10px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.detail-kv .dk-value a { color: #3498db; }
+.detail-arrow { color: #3498db; font-weight: 600; margin: 0 4px; }
+.detail-body-text {
+  white-space: pre-wrap;
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  max-height: 250px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* === FOOTER === */
+.footer {
+  padding: 10px 20px;
+  background: #fff;
+  border-top: 1px solid #ddd;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #555;
+}
+.footer.visible { display: flex; }
+.footer-left { display: flex; align-items: center; gap: 16px; }
+.footer-right { display: flex; align-items: center; gap: 8px; }
+
+/* === EXPORT DROPDOWN === */
+.export-dropdown { position: relative; }
+.export-menu {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.12);
+  overflow: hidden;
+  margin-bottom: 4px;
+  z-index: 50;
+}
+.export-menu.visible { display: block; }
+.export-option {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: #fff;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #333;
+}
+.export-option:hover { background: #f0f5ff; }
+
+/* === LOADING === */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.85);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+}
+.loading-overlay.visible { display: flex; }
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #eee;
+  border-top-color: #3498db;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: #555; }
+
+/* === HELP CONTENT === */
+.help-content h4 { font-size: 14px; font-weight: 600; color: #2c3e50; margin: 16px 0 6px; }
+.help-content h4:first-child { margin-top: 0; }
+.help-content p, .help-content li { font-size: 13px; color: #555; line-height: 1.6; }
+.help-content ol, .help-content ul { padding-left: 20px; margin: 6px 0; }
+.help-content code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.help-fields { width: 100%; border-collapse: collapse; font-size: 13px; }
+.help-fields td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.help-fields td:first-child { white-space: nowrap; width: 120px; }
+
+/* === TOAST NOTIFICATION === */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #333;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 200;
+  opacity: 0;
+  transition: transform 0.3s, opacity 0.3s;
+  pointer-events: none;
+}
+.toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast.error { background: #e74c3c; }
+.toast.success { background: #27ae60; }
+
+/* === STATUS MESSAGES === */
+.msg-success { color: #27ae60; }
+.msg-error { color: #e74c3c; }
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .header { flex-direction: column; gap: 8px; align-items: flex-start; }
+  .upload-area { padding: 20px 15px; }
+  .table-section { padding: 0 10px 10px; }
+}
+
+/* === LAYOUT === */
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; }
+.main-content { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>K4 Event Viewer</h1>
+    <span class="attribution">Flux Consulting, Inc.</span>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-sm" id="helpBtn">Help</button>
+  </div>
+</div>
+
+<div class="main-content">
+  <!-- UPLOAD AREA -->
+  <div class="upload-section" id="uploadSection">
+    <div class="upload-area" id="uploadArea">
+      <h2>Upload K4 Event Log Files</h2>
+      <p>Drag and drop k4_event*.log files here, or click to browse</p>
+      <input type="file" id="fileInput" multiple accept=".log">
+      <div class="upload-actions">
+        <button class="btn btn-primary" id="browseBtn">Browse Files</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS LINE -->
+  <div class="status-line" id="statusLine">
+    <div class="info">
+      <span>Files: <span class="status-count" id="fileCount">0</span></span>
+      <span>Events: <span class="status-count" id="eventCount">0</span></span>
+      <span>Date range: <span id="dateRange">—</span></span>
+    </div>
+    <div class="upload-actions">
+      <button class="btn btn-sm" id="addMoreBtn">Add More Files</button>
+      <button class="btn btn-sm btn-danger" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <!-- TABLE SECTION -->
+  <div class="table-section" id="tableSection">
+    <!-- Column Toggles -->
+    <div class="column-toggles" id="columnToggles">
+      <div class="column-toggles-header" id="columnTogglesHeader">Columns</div>
+      <div class="column-toggles-body" id="columnTogglesBody"></div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar" id="filterBar">
+      <div class="filter-group">
+        <label>Date From</label>
+        <input type="date" id="filterDateFrom">
+      </div>
+      <div class="filter-group">
+        <label>Date To</label>
+        <input type="date" id="filterDateTo">
+      </div>
+      <div class="filter-group">
+        <label>Time From</label>
+        <input type="time" id="filterTimeFrom" step="1">
+      </div>
+      <div class="filter-group">
+        <label>Time To</label>
+        <input type="time" id="filterTimeTo" step="1">
+      </div>
+      <div class="filter-group">
+        <label>User</label>
+        <div class="multi-select" id="filterUserName"></div>
+      </div>
+      <div class="filter-group">
+        <label>Client Type</label>
+        <div class="multi-select" id="filterClientType"></div>
+      </div>
+      <div class="filter-group">
+        <label>Object Type</label>
+        <div class="multi-select" id="filterObjectType"></div>
+      </div>
+      <div class="filter-group">
+        <label>Action</label>
+        <div class="multi-select" id="filterAction"></div>
+      </div>
+      <div class="filter-group">
+        <label>Publication</label>
+        <div class="multi-select" id="filterPublication"></div>
+      </div>
+      <div class="filter-group">
+        <label>Session ID</label>
+        <input type="text" id="filterSessionID" placeholder="Paste or click">
+      </div>
+      <div class="filter-group">
+        <label>Search</label>
+        <input type="text" id="filterFreeText" class="wide" placeholder="Free text search...">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-sm" id="clearFiltersBtn">Clear Filters</button>
+      </div>
+    </div>
+
+    <!-- Grouping Controls -->
+    <div class="grouping-bar" id="groupingBar">
+      <label>
+        <input type="checkbox" id="groupingToggle" checked>
+        Group text objects
+      </label>
+      <div class="grouping-window">
+        <span>Window:</span>
+        <input type="range" id="groupingSlider" min="1" max="60" value="7">
+        <span class="window-val" id="groupingWindowVal">7s</span>
+      </div>
+    </div>
+
+    <!-- Settings Bar -->
+    <div class="settings-bar" id="settingsBar">
+      <label>
+        <input type="checkbox" id="localTimeToggle">
+        Show local time
+      </label>
+      <label>
+        <input type="checkbox" id="sessionBandingToggle">
+        Session color banding
+      </label>
+      <button class="btn btn-sm" id="manageLabelsBtn">Manage Labels</button>
+    </div>
+
+    <!-- Table Header -->
+    <div class="table-header-row" id="tableHeaderRow"></div>
+
+    <!-- Scroll Container -->
+    <div class="scroll-container" id="scrollContainer">
+      <div class="scroll-spacer" id="scrollSpacer">
+        <div class="row-pool" id="rowPool"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer" id="footer">
+  <div class="footer-left">
+    <span>Showing <span class="status-count" id="showingCount">0</span> of <span class="status-count" id="totalCount">0</span> events</span>
+  </div>
+  <div class="footer-right">
+    <div class="export-dropdown" id="exportDropdown">
+      <button class="btn btn-primary btn-sm" id="exportBtn">Export CSV</button>
+      <div class="export-menu" id="exportMenu">
+        <button class="export-option" id="exportFlat">All Rows (Flat)</button>
+        <button class="export-option" id="exportSummary">Summary (Groups Only)</button>
+        <button class="export-option" id="exportDetails">Details (Groups + Children)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HELP MODAL -->
+<div class="modal-overlay" id="helpModal">
+  <div class="modal-panel" style="max-width:650px;">
+    <div class="modal-header">
+      <h3>K4 Event Viewer — Help</h3>
+      <button class="modal-close" id="helpModalClose">&times;</button>
+    </div>
+    <div class="modal-body help-content">
+      <h4>Purpose</h4>
+      <p>This tool helps K4 administrators view, filter, and analyze <code>k4_event.log</code> files from K4 Server diagnostics packages. Upload one or more log files to see parsed event data in a searchable, sortable table with text-object grouping.</p>
+
+      <h4>How to Use</h4>
+      <ol>
+        <li>Download the K4 diagnostics package from the <strong>K4 Server</strong> section of K4 Admin.</li>
+        <li>Extract the package and locate the <code>k4_event*.log</code> files in the K4 Server Logs folder.</li>
+        <li>Drag and drop the log files onto this page, or click Browse to select them.</li>
+        <li>Use the filters, sorting, and grouping controls to explore the data.</li>
+        <li>Export your filtered view as CSV for further analysis in Excel.</li>
+      </ol>
+
+      <h4>Enabling Event Logging</h4>
+      <p>Event logging is disabled by default. To enable it, edit <code>K4_Event_Log_Config.logback</code> located at <code>C:\ProgramData\vjoon\K4_Server</code>. Change the logger level from <code>"OFF"</code> to <code>"INFO"</code> for the <code>com.vjoon.VJ_AuditEvent</code> logger.</p>
+
+      <h4>Field Reference</h4>
+      <table class="help-fields">
+        <tr><td><strong>Date</strong></td><td>Timestamp of the event (ISO 8601 format with milliseconds)</td></tr>
+        <tr><td><strong>Timezone</strong></td><td>Server timezone abbreviation (e.g., EST, UTC)</td></tr>
+        <tr><td><strong>Thread</strong></td><td>Server thread that processed the request</td></tr>
+        <tr><td><strong>Object Type</strong></td><td>K4 object type (e.g., ARTICLE, TEXT, PUBLICATION, IMAGE)</td></tr>
+        <tr><td><strong>Action</strong></td><td>Operation performed (e.g., ACCEPT_TASK, CHECKIN, LOGON)</td></tr>
+        <tr><td><strong>Publication</strong></td><td>K4 publication name associated with the event</td></tr>
+        <tr><td><strong>Publication ID</strong></td><td>Internal publication identifier</td></tr>
+        <tr><td><strong>Session ID</strong></td><td>Client session identifier — click to filter by session</td></tr>
+        <tr><td><strong>User</strong></td><td>K4 user who performed the action</td></tr>
+        <tr><td><strong>User ID</strong></td><td>Internal user identifier</td></tr>
+        <tr><td><strong>Client Type</strong></td><td>Client application: InDesign, InCopy, Web (K4 Admin/Web), InDesignServer</td></tr>
+        <tr><td><strong>Object Name</strong></td><td>Name of the K4 object involved</td></tr>
+        <tr><td><strong>Object ID</strong></td><td>Internal object identifier</td></tr>
+        <tr><td><strong>Data</strong></td><td>Additional event data — XML parameters, comments, mail info. Click to expand.</td></tr>
+      </table>
+
+      <h4>Tips</h4>
+      <ul>
+        <li><strong>Text Object Grouping</strong> collapses child text objects under their parent article, reducing noise by ~79%. Adjust the time window (1–60s) to tune grouping sensitivity.</li>
+        <li><strong>Multi-column sort</strong>: Shift+click column headers to add secondary sort criteria.</li>
+        <li><strong>Article labels</strong>: Click a group's article name to rename it. Labels persist in your browser across sessions. Use Manage Labels to export/import.</li>
+        <li><strong>Local time</strong>: Toggle "Show local time" to convert server timestamps to your browser's timezone.</li>
+        <li><strong>Session banding</strong>: Toggle to add color-coded left borders for visual session tracking.</li>
+        <li><strong>Export</strong>: When grouping is enabled, choose between flat, summary, or details CSV exports.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE LABELS MODAL -->
+<div class="modal-overlay" id="labelsModal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h3>Manage Article Labels</h3>
+      <button class="modal-close" id="labelsModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#666;margin-bottom:10px;" id="labelsCount">No custom labels defined.</p>
+      <ul class="manage-labels-list" id="labelsList"></ul>
+      <div class="manage-labels-actions">
+        <button class="btn btn-sm" id="exportLabelsBtn">Export JSON</button>
+        <button class="btn btn-sm" id="importLabelsBtn">Import JSON</button>
+        <input type="file" id="importLabelsInput" accept=".json" style="display:none">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h3 id="detailModalTitle">Event Data</h3>
+      <button class="modal-close" id="detailModalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="detailModalBody"></div>
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading events...</div>
+</div>
+
+<script>
+// === CONFIGURATION & CONSTANTS ===
+const ROW_HEIGHT = 28;
+const BUFFER_ROWS = 1000;
+const SCROLL_HYSTERESIS = 500;
+
+const COLUMN_DEFS = [
+  { id: 'date',            label: 'Date',            defaultVisible: true,  width: '160px' },
+  { id: 'timezone',        label: 'Timezone',        defaultVisible: false, width: '60px' },
+  { id: 'thread',          label: 'Thread',          defaultVisible: false, width: '180px' },
+  { id: 'objectType',      label: 'Object Type',     defaultVisible: true,  width: '130px' },
+  { id: 'action',          label: 'Action',          defaultVisible: true,  width: '150px' },
+  { id: 'publicationName', label: 'Publication',     defaultVisible: true,  width: '120px' },
+  { id: 'publicationID',   label: 'Publication ID',  defaultVisible: false, width: '120px' },
+  { id: 'sessionID',       label: 'Session ID',      defaultVisible: false, width: '200px' },
+  { id: 'userName',        label: 'User',            defaultVisible: true,  width: '150px' },
+  { id: 'userID',          label: 'User ID',         defaultVisible: false, width: '80px' },
+  { id: 'clientType',      label: 'Client Type',     defaultVisible: true,  width: '110px' },
+  { id: 'objectName',      label: 'Object Name',     defaultVisible: true,  width: '200px' },
+  { id: 'objectID',        label: 'Object ID',       defaultVisible: false, width: '100px' },
+  { id: 'data',            label: 'Data',            defaultVisible: true,  width: '1fr' },
+];
+
+// === STATE ===
+const state = {
+  allEvents: [],
+  filteredEvents: [],
+  sortedEvents: [],
+  displayRows: [],
+  filesMeta: [],
+  columns: COLUMN_DEFS.map(c => ({ ...c, visible: c.defaultVisible })),
+  sortStack: [{ column: 'date', direction: 'asc' }],
+  filters: {
+    dateFrom: '', dateTo: '',
+    timeFrom: '', timeTo: '',
+    userName: [], clientType: [], objectType: [], action: [], publicationName: [],
+    sessionID: '',
+    freeText: '',
+  },
+  filterOptions: {
+    userName: [], clientType: [], objectType: [], action: [], publicationName: [],
+  },
+  // Grouping
+  groupingEnabled: true,
+  groupingWindowSec: 7,
+  groups: new Map(),
+  expandedGroups: new Set(),
+  // Display settings
+  showLocalTime: false,
+  sessionBanding: false,
+  userLabels: {},
+  // Virtual scroll
+  renderStart: -1,
+  renderEnd: -1,
+};
+
+// === DOM REFS ===
+const dom = {};
+function cacheDom() {
+  dom.uploadSection = document.getElementById('uploadSection');
+  dom.uploadArea = document.getElementById('uploadArea');
+  dom.fileInput = document.getElementById('fileInput');
+  dom.browseBtn = document.getElementById('browseBtn');
+  dom.statusLine = document.getElementById('statusLine');
+  dom.fileCount = document.getElementById('fileCount');
+  dom.eventCount = document.getElementById('eventCount');
+  dom.dateRange = document.getElementById('dateRange');
+  dom.addMoreBtn = document.getElementById('addMoreBtn');
+  dom.resetBtn = document.getElementById('resetBtn');
+  dom.tableSection = document.getElementById('tableSection');
+  dom.columnToggles = document.getElementById('columnToggles');
+  dom.columnTogglesHeader = document.getElementById('columnTogglesHeader');
+  dom.columnTogglesBody = document.getElementById('columnTogglesBody');
+  dom.tableHeaderRow = document.getElementById('tableHeaderRow');
+  dom.scrollContainer = document.getElementById('scrollContainer');
+  dom.scrollSpacer = document.getElementById('scrollSpacer');
+  dom.rowPool = document.getElementById('rowPool');
+  dom.footer = document.getElementById('footer');
+  dom.showingCount = document.getElementById('showingCount');
+  dom.totalCount = document.getElementById('totalCount');
+  dom.exportBtn = document.getElementById('exportBtn');
+  dom.exportDropdown = document.getElementById('exportDropdown');
+  dom.exportMenu = document.getElementById('exportMenu');
+  dom.exportFlat = document.getElementById('exportFlat');
+  dom.exportSummary = document.getElementById('exportSummary');
+  dom.exportDetails = document.getElementById('exportDetails');
+  dom.loadingOverlay = document.getElementById('loadingOverlay');
+  dom.groupingBar = document.getElementById('groupingBar');
+  dom.groupingToggle = document.getElementById('groupingToggle');
+  dom.groupingSlider = document.getElementById('groupingSlider');
+  dom.groupingWindowVal = document.getElementById('groupingWindowVal');
+  dom.settingsBar = document.getElementById('settingsBar');
+  dom.localTimeToggle = document.getElementById('localTimeToggle');
+  dom.sessionBandingToggle = document.getElementById('sessionBandingToggle');
+  dom.helpBtn = document.getElementById('helpBtn');
+  dom.helpModal = document.getElementById('helpModal');
+  dom.helpModalClose = document.getElementById('helpModalClose');
+  dom.toast = document.getElementById('toast');
+  dom.manageLabelsBtn = document.getElementById('manageLabelsBtn');
+  dom.labelsModal = document.getElementById('labelsModal');
+  dom.labelsModalClose = document.getElementById('labelsModalClose');
+  dom.labelsList = document.getElementById('labelsList');
+  dom.labelsCount = document.getElementById('labelsCount');
+  dom.exportLabelsBtn = document.getElementById('exportLabelsBtn');
+  dom.importLabelsBtn = document.getElementById('importLabelsBtn');
+  dom.importLabelsInput = document.getElementById('importLabelsInput');
+  dom.detailModal = document.getElementById('detailModal');
+  dom.detailModalTitle = document.getElementById('detailModalTitle');
+  dom.detailModalBody = document.getElementById('detailModalBody');
+  dom.detailModalClose = document.getElementById('detailModalClose');
+  dom.filterBar = document.getElementById('filterBar');
+  dom.filterDateFrom = document.getElementById('filterDateFrom');
+  dom.filterDateTo = document.getElementById('filterDateTo');
+  dom.filterTimeFrom = document.getElementById('filterTimeFrom');
+  dom.filterTimeTo = document.getElementById('filterTimeTo');
+  dom.filterSessionID = document.getElementById('filterSessionID');
+  dom.filterFreeText = document.getElementById('filterFreeText');
+  dom.clearFiltersBtn = document.getElementById('clearFiltersBtn');
+}
+
+// === PARSING ===
+function parseLine(line) {
+  if (!line || line.length < 30) return null;
+
+  const prefixMatch = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) (\w+) \[/);
+  if (!prefixMatch) return null;
+
+  const dateStr = prefixMatch[1];
+  const timezone = prefixMatch[2];
+  const rest = line.substring(prefixMatch[0].length);
+
+  const closingBracketData = rest.lastIndexOf('] ');
+  const closingBracketEnd = rest.lastIndexOf(']');
+
+  const segments = rest.split('] [');
+  if (segments.length < 11) return null;
+
+  const lastSeg = segments[10];
+  let objectID, data;
+  const idDataSplit = lastSeg.indexOf('] ');
+  if (idDataSplit !== -1) {
+    objectID = lastSeg.substring(0, idDataSplit).trim();
+    data = lastSeg.substring(idDataSplit + 2);
+  } else {
+    objectID = lastSeg.replace(/\]$/, '').trim();
+    data = '';
+  }
+
+  const timestampMs = parseTimestamp(dateStr, timezone);
+
+  return {
+    date: dateStr,
+    timezone,
+    thread: segments[0].trim(),
+    objectType: segments[1].trim(),
+    action: segments[2].trim(),
+    publicationName: segments[3].trim(),
+    publicationID: segments[4].trim(),
+    sessionID: segments[5].trim(),
+    userName: segments[6].trim(),
+    userID: segments[7].trim(),
+    clientType: segments[8].trim(),
+    objectName: segments[9].trim(),
+    objectID,
+    data: data.trim(),
+    timestampMs,
+  };
+}
+
+function parseTimestamp(dateStr, tz) {
+  const d = dateStr.replace(',', '.');
+  const tzOffsets = { EST: '-05:00', EDT: '-04:00', CST: '-06:00', CDT: '-05:00', MST: '-07:00', MDT: '-06:00', PST: '-08:00', PDT: '-07:00', UTC: '+00:00', GMT: '+00:00' };
+  const offset = tzOffsets[tz] || '+00:00';
+  const isoStr = d.replace(' ', 'T') + offset;
+  const ms = Date.parse(isoStr);
+  return isNaN(ms) ? 0 : ms;
+}
+
+function convertToLocalTime(timestampMs) {
+  if (!timestampMs) return '';
+  const d = new Date(timestampMs);
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  const ms = String(d.getMilliseconds()).padStart(3, '0');
+  return y + '-' + mo + '-' + day + ' ' + h + ':' + mi + ':' + s + ',' + ms;
+}
+
+function getDisplayDate(event) {
+  if (state.showLocalTime && event.timestampMs) {
+    if (!event._dateLocal) event._dateLocal = convertToLocalTime(event.timestampMs);
+    return event._dateLocal;
+  }
+  return event.date;
+}
+
+const SESSION_COLORS = [
+  '#e3f2fd', '#fce4ec', '#e8f5e9', '#fff3e0',
+  '#f3e5f5', '#e0f7fa', '#fff8e1', '#fbe9e7',
+  '#ede7f6', '#e8eaf6',
+];
+
+function getSessionColor(sessionID) {
+  if (!sessionID) return 'transparent';
+  let hash = 0;
+  for (let i = 0; i < sessionID.length; i++) {
+    hash = ((hash << 5) - hash) + sessionID.charCodeAt(i);
+    hash |= 0;
+  }
+  return SESSION_COLORS[Math.abs(hash) % SESSION_COLORS.length];
+}
+
+function filterBySession(sessionID) {
+  state.filters.sessionID = sessionID;
+  dom.filterSessionID.value = sessionID;
+  applyFilters();
+}
+
+function parseFile(text, filename) {
+  const lines = text.split('\n');
+  const events = [];
+  for (let i = 0; i < lines.length; i++) {
+    const event = parseLine(lines[i]);
+    if (event) {
+      event._sourceFile = filename;
+      event._lineNum = i + 1;
+      events.push(event);
+    }
+  }
+  return events;
+}
+
+function mergeAndSort(existing, newEvents) {
+  const merged = existing.concat(newEvents);
+  merged.sort((a, b) => a.timestampMs - b.timestampMs);
+  return merged;
+}
+
+// === FILE UPLOAD ===
+function handleFiles(fileList) {
+  const logFiles = Array.from(fileList).filter(f =>
+    f.name.toLowerCase().endsWith('.log')
+  );
+
+  if (logFiles.length === 0) {
+    showStatusMessage('No .log files found. Please upload k4_event*.log files.', 'error');
+    return;
+  }
+
+  showLoading(true);
+  let loaded = 0;
+  const allNew = [];
+
+  logFiles.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const events = parseFile(e.target.result, file.name);
+      if (events.length === 0) {
+        showStatusMessage(file.name + ' contains no valid K4 event log lines.', 'error');
+      } else {
+        allNew.push(...events);
+        const existing = state.filesMeta.find(m => m.name === file.name);
+        if (!existing) {
+          state.filesMeta.push({ name: file.name, lineCount: events.length });
+        }
+      }
+
+      loaded++;
+      if (loaded === logFiles.length) {
+        state.allEvents = mergeAndSort(state.allEvents, allNew);
+        onDataLoaded();
+        showLoading(false);
+      }
+    };
+    reader.onerror = function() {
+      loaded++;
+      showStatusMessage('Error reading ' + file.name, 'error');
+      if (loaded === logFiles.length) {
+        if (allNew.length > 0) {
+          state.allEvents = mergeAndSort(state.allEvents, allNew);
+          onDataLoaded();
+        }
+        showLoading(false);
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
+function onDataLoaded() {
+  populateFilterOptions();
+  renderMultiSelects();
+  applyFilters();
+  updateStatusLine();
+  updateUI();
+  renderColumnToggles();
+  renderTableHeader();
+  scrollToTop();
+  renderVisibleRows();
+}
+
+function resetAll() {
+  state.allEvents = [];
+  state.filteredEvents = [];
+  state.sortedEvents = [];
+  state.displayRows = [];
+  state.filesMeta = [];
+  state.renderStart = -1;
+  state.renderEnd = -1;
+  state.sortStack = [{ column: 'date', direction: 'asc' }];
+  state.filters = { dateFrom: '', dateTo: '', timeFrom: '', timeTo: '', userName: [], clientType: [], objectType: [], action: [], publicationName: [], sessionID: '', freeText: '' };
+  state.filterOptions = { userName: [], clientType: [], objectType: [], action: [], publicationName: [] };
+  state.groupingEnabled = true;
+  state.groupingWindowSec = 7;
+  state.groups = new Map();
+  state.expandedGroups = new Set();
+  if (dom.groupingToggle) dom.groupingToggle.checked = true;
+  if (dom.groupingSlider) { dom.groupingSlider.value = 7; dom.groupingWindowVal.textContent = '7s'; }
+  clearFilterInputs();
+  dom.rowPool.innerHTML = '';
+  updateUI();
+}
+
+// === SORT ===
+function applySort() {
+  state.sortedEvents = state.filteredEvents.slice();
+  if (state.sortStack.length > 0) {
+    state.sortedEvents.sort(sortComparator);
+  }
+}
+
+function sortComparator(a, b) {
+  for (const { column, direction } of state.sortStack) {
+    let cmp = 0;
+    if (column === 'date') {
+      cmp = a.timestampMs - b.timestampMs;
+    } else {
+      const va = (a[column] || '');
+      const vb = (b[column] || '');
+      cmp = va.localeCompare(vb);
+    }
+    if (cmp !== 0) return direction === 'asc' ? cmp : -cmp;
+  }
+  return 0;
+}
+
+function handleHeaderClick(e) {
+  if (e.target.classList.contains('col-resize-handle')) return;
+  const colId = e.target.closest('.table-header-cell')?.dataset?.column;
+  if (!colId) return;
+
+  const existing = state.sortStack.findIndex(s => s.column === colId);
+  if (e.shiftKey) {
+    if (existing !== -1) {
+      if (state.sortStack[existing].direction === 'asc') {
+        state.sortStack[existing].direction = 'desc';
+      } else {
+        state.sortStack.splice(existing, 1);
+      }
+    } else {
+      state.sortStack.push({ column: colId, direction: 'asc' });
+    }
+  } else {
+    if (existing === 0 && state.sortStack.length === 1) {
+      if (state.sortStack[0].direction === 'asc') {
+        state.sortStack[0].direction = 'desc';
+      } else {
+        state.sortStack = [];
+      }
+    } else {
+      state.sortStack = [{ column: colId, direction: 'asc' }];
+    }
+  }
+
+  applySort();
+  buildDisplayRows();
+  renderTableHeader();
+  scrollToTop();
+  renderVisibleRows();
+}
+
+// === DISPLAY ROWS ===
+function buildDisplayRows() {
+  if (!state.groupingEnabled) {
+    state.displayRows = state.sortedEvents.map(evt => ({ type: 'event', data: evt }));
+  } else {
+    const grouped = computeGroups(state.filteredEvents, state.groupingWindowSec * 1000);
+    if (state.sortStack.length > 0) {
+      grouped.sort((a, b) => {
+        const ad = a.type === 'group' ? a.anchor : a.data;
+        const bd = b.type === 'group' ? b.anchor : b.data;
+        return sortComparator(ad, bd);
+      });
+    }
+    state.displayRows = flattenGrouped(grouped);
+  }
+  updateRowCounts();
+}
+
+// === GROUPING ENGINE ===
+function computeGroups(events, windowMs) {
+  const byTime = events.slice().sort((a, b) => a.timestampMs - b.timestampMs);
+  const result = [];
+  let i = 0;
+
+  while (i < byTime.length) {
+    const anchor = byTime[i];
+    const children = [anchor];
+    let j = i + 1;
+    let lastTs = anchor.timestampMs;
+
+    while (j < byTime.length) {
+      const candidate = byTime[j];
+      if (candidate.sessionID === anchor.sessionID &&
+          candidate.action === anchor.action &&
+          (candidate.timestampMs - lastTs) <= windowMs) {
+        children.push(candidate);
+        lastTs = candidate.timestampMs;
+        j++;
+      } else {
+        break;
+      }
+    }
+
+    if (children.length > 1) {
+      const groupId = computeGroupId(children);
+      const taskName = extractTaskName(children);
+      const defaultLabel = 'ARTICLE: ' + anchor.objectName;
+      result.push({
+        type: 'group',
+        groupId,
+        anchor: anchor,
+        defaultLabel,
+        label: state.userLabels[groupId] || defaultLabel,
+        hasCustomLabel: !!state.userLabels[groupId],
+        taskName,
+        childCount: children.length,
+        children,
+        collapsed: !state.expandedGroups.has(groupId),
+      });
+      state.groups.set(groupId, result[result.length - 1]);
+    } else {
+      result.push({ type: 'event', data: anchor });
+    }
+    i = j;
+  }
+  return result;
+}
+
+function computeGroupId(children) {
+  const ids = children.map(c => c.objectID).filter(Boolean).sort();
+  return ids.join('-');
+}
+
+function extractTaskName(children) {
+  for (const child of children) {
+    if (!child.data) continue;
+    const m = child.data.match(/<!--\s*Accept Task:\s*'([^']+)'/);
+    if (m) return m[1];
+    const m2 = child.data.match(/<!--\s*Changed\s+'([^']+)'/);
+    if (m2) return m2[1];
+    const m3 = child.data.match(/<!--\s*Undo Accept Task/);
+    if (m3) return '(Undo Accept)';
+  }
+  return '';
+}
+
+// === USER-DEFINED LABELS ===
+function loadUserLabels() {
+  try {
+    const stored = localStorage.getItem('k4ev_labels');
+    if (stored) state.userLabels = JSON.parse(stored);
+  } catch (e) { /* ignore */ }
+}
+
+function saveUserLabels() {
+  try {
+    localStorage.setItem('k4ev_labels', JSON.stringify(state.userLabels));
+  } catch (e) { /* ignore */ }
+}
+
+function setUserLabel(groupId, label) {
+  state.userLabels[groupId] = label;
+  saveUserLabels();
+  buildDisplayRows();
+  forceRerender();
+}
+
+function removeUserLabel(groupId) {
+  delete state.userLabels[groupId];
+  saveUserLabels();
+  buildDisplayRows();
+  forceRerender();
+}
+
+function startLabelEdit(groupId, currentLabel, cellEl) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'group-label-input';
+  input.value = currentLabel;
+  cellEl.innerHTML = '';
+  cellEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+
+  const commit = () => {
+    const newLabel = input.value.trim();
+    if (newLabel && newLabel !== currentLabel) {
+      const group = state.groups.get(groupId);
+      if (group && newLabel !== group.defaultLabel) {
+        setUserLabel(groupId, newLabel);
+      } else {
+        removeUserLabel(groupId);
+      }
+    } else {
+      forceRerender();
+    }
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.removeEventListener('blur', commit); forceRerender(); }
+  });
+}
+
+function showLabelsModal() {
+  dom.labelsList.innerHTML = '';
+  const keys = Object.keys(state.userLabels);
+  dom.labelsCount.textContent = keys.length === 0 ? 'No custom labels defined.' : keys.length + ' custom label' + (keys.length === 1 ? '' : 's');
+
+  keys.forEach(groupId => {
+    const li = document.createElement('li');
+    const info = document.createElement('div');
+    const labelText = document.createElement('div');
+    labelText.textContent = state.userLabels[groupId];
+    labelText.style.fontWeight = '500';
+    const orig = document.createElement('div');
+    orig.className = 'ml-original';
+    const group = state.groups.get(groupId);
+    orig.textContent = group ? group.defaultLabel : 'Group: ' + groupId.substring(0, 30) + '…';
+    info.appendChild(labelText);
+    info.appendChild(orig);
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-sm btn-danger';
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => {
+      removeUserLabel(groupId);
+      showLabelsModal();
+    });
+    li.appendChild(info);
+    li.appendChild(delBtn);
+    dom.labelsList.appendChild(li);
+  });
+
+  dom.labelsModal.classList.add('visible');
+}
+
+function hideLabelsModal() {
+  dom.labelsModal.classList.remove('visible');
+}
+
+function exportLabels() {
+  const json = JSON.stringify(state.userLabels, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'k4_event_labels.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importLabels(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (typeof imported === 'object' && imported !== null) {
+        Object.assign(state.userLabels, imported);
+        saveUserLabels();
+        buildDisplayRows();
+        forceRerender();
+        showLabelsModal();
+      }
+    } catch (err) {
+      alert('Invalid JSON file');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// === CSV EXPORT ===
+function csvEscape(val) {
+  if (val == null) return '';
+  const s = String(val);
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function downloadCSV(csvContent, filename) {
+  const bom = '﻿';
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function getExportFilename() {
+  const d = new Date();
+  const ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return 'k4_events_export_' + ds + '.csv';
+}
+
+function getVisibleColumnIds() {
+  return state.columns.filter(c => c.visible).map(c => c.id);
+}
+
+function exportFlat() {
+  const cols = getVisibleColumnIds();
+  const headers = cols.map(id => state.columns.find(c => c.id === id).label);
+  const lines = [headers.map(csvEscape).join(',')];
+  for (const event of state.sortedEvents) {
+    const row = cols.map(id => {
+      if (id === 'date') return csvEscape(getDisplayDate(event));
+      return csvEscape(event[id] || '');
+    });
+    lines.push(row.join(','));
+  }
+  downloadCSV(lines.join('\r\n'), getExportFilename());
+}
+
+function exportSummary() {
+  const headers = ['Article', 'Task Name', 'Count', 'Date From', 'Date To', 'User', 'Action', 'Publication', 'Session ID'];
+  const lines = [headers.map(csvEscape).join(',')];
+  const grouped = computeGroups(state.filteredEvents, state.groupingWindowSec * 1000);
+  for (const item of grouped) {
+    if (item.type !== 'group') {
+      const e = item.data;
+      lines.push([csvEscape(e.objectName), '', '1', csvEscape(getDisplayDate(e)), csvEscape(getDisplayDate(e)),
+        csvEscape(e.userName), csvEscape(e.action), csvEscape(e.publicationName), csvEscape(e.sessionID)].join(','));
+      continue;
+    }
+    const first = item.children[0];
+    const last = item.children[item.children.length - 1];
+    lines.push([csvEscape(item.label), csvEscape(item.taskName), String(item.childCount),
+      csvEscape(getDisplayDate(first)), csvEscape(getDisplayDate(last)),
+      csvEscape(first.userName), csvEscape(first.action), csvEscape(first.publicationName), csvEscape(first.sessionID)].join(','));
+  }
+  downloadCSV(lines.join('\r\n'), getExportFilename().replace('.csv', '_summary.csv'));
+}
+
+function exportDetails() {
+  const baseCols = getVisibleColumnIds();
+  const headers = ['Group ID', 'Article', 'Row Type', ...baseCols.map(id => state.columns.find(c => c.id === id).label)];
+  const lines = [headers.map(csvEscape).join(',')];
+  const grouped = computeGroups(state.filteredEvents, state.groupingWindowSec * 1000);
+  for (const item of grouped) {
+    if (item.type !== 'group') {
+      const e = item.data;
+      const vals = baseCols.map(id => id === 'date' ? csvEscape(getDisplayDate(e)) : csvEscape(e[id] || ''));
+      lines.push(['', csvEscape(e.objectName), 'event', ...vals].join(','));
+      continue;
+    }
+    const anchor = item.anchor;
+    const aVals = baseCols.map(id => id === 'date' ? csvEscape(getDisplayDate(anchor)) : csvEscape(anchor[id] || ''));
+    lines.push([csvEscape(item.groupId), csvEscape(item.label), 'group', ...aVals].join(','));
+    for (const child of item.children) {
+      const cVals = baseCols.map(id => id === 'date' ? csvEscape(getDisplayDate(child)) : csvEscape(child[id] || ''));
+      lines.push([csvEscape(item.groupId), '', 'child', ...cVals].join(','));
+    }
+  }
+  downloadCSV(lines.join('\r\n'), getExportFilename().replace('.csv', '_details.csv'));
+}
+
+function flattenGrouped(grouped) {
+  const rows = [];
+  for (const item of grouped) {
+    if (item.type === 'event') {
+      rows.push(item);
+    } else {
+      rows.push(item);
+      if (!item.collapsed) {
+        for (const child of item.children) {
+          rows.push({ type: 'child', data: child, groupId: item.groupId });
+        }
+      }
+    }
+  }
+  return rows;
+}
+
+function toggleGroup(groupId) {
+  if (state.expandedGroups.has(groupId)) {
+    state.expandedGroups.delete(groupId);
+  } else {
+    state.expandedGroups.add(groupId);
+  }
+  buildDisplayRows();
+  updateScrollSpacer();
+  forceRerender();
+}
+
+// === VIRTUAL SCROLL ===
+function getVisibleColumns() {
+  return state.columns.filter(c => c.visible);
+}
+
+function getGridTemplate() {
+  return getVisibleColumns().map(c => c.width).join(' ');
+}
+
+function renderTableHeader() {
+  const cols = getVisibleColumns();
+  dom.tableHeaderRow.style.gridTemplateColumns = getGridTemplate();
+  dom.tableHeaderRow.innerHTML = '';
+
+  cols.forEach((col, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'table-header-cell';
+    cell.dataset.column = col.id;
+    cell.textContent = col.label;
+
+    const sortInfo = state.sortStack.findIndex(s => s.column === col.id);
+    if (sortInfo !== -1) {
+      const s = state.sortStack[sortInfo];
+      const arrow = s.direction === 'asc' ? ' ▲' : ' ▼';
+      const badge = state.sortStack.length > 1 ? ` (${sortInfo + 1})` : '';
+      cell.textContent += arrow + badge;
+    }
+
+    const handle = document.createElement('div');
+    handle.className = 'col-resize-handle';
+    handle.addEventListener('mousedown', (e) => startColumnResize(e, col.id));
+    cell.appendChild(handle);
+
+    dom.tableHeaderRow.appendChild(cell);
+  });
+}
+
+function startColumnResize(e, colId) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const col = state.columns.find(c => c.id === colId);
+  if (!col) return;
+
+  const headerCells = dom.tableHeaderRow.children;
+  const visibleCols = getVisibleColumns();
+  const colIndex = visibleCols.findIndex(c => c.id === colId);
+  if (colIndex === -1) return;
+
+  const cellEl = headerCells[colIndex];
+  const startWidth = cellEl.getBoundingClientRect().width;
+  const startX = e.clientX;
+
+  if (col.width.endsWith('fr') || col.width === 'auto') {
+    col.width = Math.round(startWidth) + 'px';
+  }
+
+  const handle = e.target;
+  handle.classList.add('active');
+  document.body.classList.add('col-resizing');
+
+  const onMove = (ev) => {
+    const delta = ev.clientX - startX;
+    const newWidth = Math.max(40, Math.round(startWidth + delta));
+    col.width = newWidth + 'px';
+    const template = getGridTemplate();
+    dom.tableHeaderRow.style.gridTemplateColumns = template;
+    const rows = dom.rowPool.children;
+    for (let i = 0; i < rows.length; i++) {
+      rows[i].style.gridTemplateColumns = template;
+    }
+  };
+
+  const onUp = () => {
+    handle.classList.remove('active');
+    document.body.classList.remove('col-resizing');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function scrollToTop() {
+  dom.scrollContainer.scrollTop = 0;
+  state.renderStart = -1;
+  state.renderEnd = -1;
+}
+
+function updateScrollSpacer() {
+  const totalHeight = state.displayRows.length * ROW_HEIGHT;
+  dom.scrollSpacer.style.height = totalHeight + 'px';
+}
+
+function onScroll() {
+  if (!state._scrollRaf) {
+    state._scrollRaf = requestAnimationFrame(() => {
+      state._scrollRaf = null;
+      renderVisibleRows();
+    });
+  }
+}
+
+function renderVisibleRows() {
+  const totalRows = state.displayRows.length;
+  if (totalRows === 0) {
+    dom.rowPool.innerHTML = '';
+    dom.scrollSpacer.style.height = '0px';
+    return;
+  }
+
+  updateScrollSpacer();
+
+  const scrollTop = dom.scrollContainer.scrollTop;
+  const containerHeight = dom.scrollContainer.clientHeight;
+  const firstVisible = Math.floor(scrollTop / ROW_HEIGHT);
+  const visibleCount = Math.ceil(containerHeight / ROW_HEIGHT);
+
+  const newStart = Math.max(0, firstVisible - BUFFER_ROWS);
+  const newEnd = Math.min(totalRows, firstVisible + visibleCount + BUFFER_ROWS);
+
+  if (state.renderStart !== -1 &&
+      newStart >= state.renderStart + SCROLL_HYSTERESIS * 0 &&
+      newEnd <= state.renderEnd &&
+      newStart >= state.renderStart &&
+      Math.abs(newStart - state.renderStart) < SCROLL_HYSTERESIS &&
+      Math.abs(newEnd - state.renderEnd) < SCROLL_HYSTERESIS) {
+    return;
+  }
+
+  state.renderStart = newStart;
+  state.renderEnd = newEnd;
+
+  const gridTemplate = getGridTemplate();
+  const cols = getVisibleColumns();
+  const fragment = document.createDocumentFragment();
+
+  for (let i = newStart; i < newEnd; i++) {
+    const row = state.displayRows[i];
+    const rowEl = document.createElement('div');
+    rowEl.style.gridTemplateColumns = gridTemplate;
+
+    if (row.type === 'group') {
+      rowEl.className = 'table-row group-row';
+      if (state.sessionBanding && row.anchor.sessionID) {
+        rowEl.classList.add('session-banded');
+        rowEl.style.setProperty('--session-color', getSessionColor(row.anchor.sessionID));
+      }
+      rowEl.dataset.groupId = row.groupId;
+      rowEl.addEventListener('click', () => toggleGroup(row.groupId));
+
+      cols.forEach(col => {
+        const cell = document.createElement('div');
+        cell.className = 'table-cell';
+        if (col.id === 'date') {
+          cell.textContent = getDisplayDate(row.anchor);
+        } else if (col.id === 'sessionID') {
+          cell.textContent = row.anchor.sessionID || '';
+          if (row.anchor.sessionID) {
+            cell.className = 'table-cell session-cell';
+            cell.addEventListener('click', (e) => { e.stopPropagation(); filterBySession(row.anchor.sessionID); });
+          }
+        } else if (col.id === 'objectName') {
+          const icon = document.createElement('span');
+          icon.className = 'group-expand-icon' + (row.collapsed ? '' : ' expanded');
+          icon.textContent = '▶';
+          const wrap = document.createElement('span');
+          wrap.className = 'group-label-wrap';
+          const label = document.createElement('span');
+          label.className = 'group-label group-label-edit' + (row.hasCustomLabel ? ' group-label-custom' : '');
+          label.textContent = row.label;
+          label.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startLabelEdit(row.groupId, row.label, cell);
+          });
+          wrap.appendChild(label);
+          if (row.hasCustomLabel) {
+            const revert = document.createElement('span');
+            revert.className = 'group-label-revert';
+            revert.textContent = '✕';
+            revert.title = 'Revert to default label';
+            revert.addEventListener('click', (e) => { e.stopPropagation(); removeUserLabel(row.groupId); });
+            wrap.appendChild(revert);
+          }
+          const badge = document.createElement('span');
+          badge.className = 'group-count';
+          badge.textContent = '+' + (row.childCount - 1);
+          cell.appendChild(icon);
+          cell.appendChild(document.createTextNode(' '));
+          cell.appendChild(wrap);
+          cell.appendChild(badge);
+          cell.style.overflow = 'visible';
+          cell.style.whiteSpace = 'nowrap';
+        } else if (col.id === 'data') {
+          cell.className = 'table-cell data-cell';
+          cell.textContent = row.taskName || '';
+          cell.style.fontStyle = 'italic';
+          cell.style.color = '#3498db';
+        } else {
+          cell.textContent = row.anchor[col.id] || '';
+        }
+        rowEl.appendChild(cell);
+      });
+    } else if (row.type === 'child') {
+      rowEl.className = 'table-row child-row';
+      if (state.sessionBanding && row.data.sessionID) {
+        rowEl.classList.add('session-banded');
+        rowEl.style.setProperty('--session-color', getSessionColor(row.data.sessionID));
+      }
+
+      cols.forEach(col => {
+        const cell = document.createElement('div');
+        cell.className = 'table-cell' + (col.id === 'data' ? ' data-cell' : '');
+        if (col.id === 'date') {
+          cell.textContent = getDisplayDate(row.data);
+          rowEl.appendChild(cell);
+          return;
+        }
+        if (col.id === 'sessionID' && row.data.sessionID) {
+          cell.className = 'table-cell session-cell';
+          cell.textContent = row.data.sessionID;
+          cell.addEventListener('click', (e) => { e.stopPropagation(); filterBySession(row.data.sessionID); });
+          rowEl.appendChild(cell);
+          return;
+        }
+        const val = row.data[col.id] || '';
+        if (col.id === 'data' && val.length > 80) {
+          cell.textContent = val.substring(0, 80) + '…';
+          cell.title = 'Click to view full data';
+          cell.addEventListener('click', (e) => { e.stopPropagation(); showDetailModal(row.data.data, row.data); });
+        } else if (col.id === 'data' && val) {
+          cell.textContent = val;
+          cell.addEventListener('click', (e) => { e.stopPropagation(); showDetailModal(row.data.data, row.data); });
+        } else {
+          cell.textContent = val;
+        }
+        rowEl.appendChild(cell);
+      });
+    } else {
+      rowEl.className = 'table-row' + ((i % 2 === 1) ? ' alt' : '');
+      if (state.sessionBanding && row.data.sessionID) {
+        rowEl.classList.add('session-banded');
+        rowEl.style.setProperty('--session-color', getSessionColor(row.data.sessionID));
+      }
+
+      cols.forEach(col => {
+        const cell = document.createElement('div');
+        cell.className = 'table-cell' + (col.id === 'data' ? ' data-cell' : '');
+        if (col.id === 'date') {
+          cell.textContent = getDisplayDate(row.data);
+          rowEl.appendChild(cell);
+          return;
+        }
+        if (col.id === 'sessionID' && row.data.sessionID) {
+          cell.className = 'table-cell session-cell';
+          cell.textContent = row.data.sessionID;
+          cell.addEventListener('click', () => filterBySession(row.data.sessionID));
+          rowEl.appendChild(cell);
+          return;
+        }
+        const val = row.data[col.id] || '';
+        if (col.id === 'data' && val.length > 80) {
+          cell.textContent = val.substring(0, 80) + '…';
+          cell.title = 'Click to view full data';
+          cell.addEventListener('click', () => showDetailModal(row.data.data, row.data));
+        } else if (col.id === 'data' && val) {
+          cell.textContent = val;
+          cell.addEventListener('click', () => showDetailModal(row.data.data, row.data));
+        } else {
+          cell.textContent = val;
+        }
+        rowEl.appendChild(cell);
+      });
+    }
+
+    fragment.appendChild(rowEl);
+  }
+
+  dom.rowPool.innerHTML = '';
+  dom.rowPool.appendChild(fragment);
+  dom.rowPool.style.top = (newStart * ROW_HEIGHT) + 'px';
+}
+
+// === COLUMN TOGGLES ===
+function renderColumnToggles() {
+  dom.columnTogglesBody.innerHTML = '';
+
+  const allItem = document.createElement('label');
+  allItem.className = 'column-toggle-item toggle-all';
+  const allCb = document.createElement('input');
+  allCb.type = 'checkbox';
+  allCb.checked = state.columns.every(c => c.visible);
+  allCb.addEventListener('change', () => {
+    state.columns.forEach(c => c.visible = allCb.checked);
+    renderColumnToggles();
+    renderTableHeader();
+    forceRerender();
+  });
+  allItem.appendChild(allCb);
+  allItem.appendChild(document.createTextNode('Toggle All'));
+  dom.columnTogglesBody.appendChild(allItem);
+
+  state.columns.forEach(col => {
+    const item = document.createElement('label');
+    item.className = 'column-toggle-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = col.visible;
+    cb.addEventListener('change', () => {
+      col.visible = cb.checked;
+      renderTableHeader();
+      forceRerender();
+      const masterCb = dom.columnTogglesBody.querySelector('.toggle-all input');
+      if (masterCb) masterCb.checked = state.columns.every(c => c.visible);
+    });
+    item.appendChild(cb);
+    item.appendChild(document.createTextNode(col.label));
+    dom.columnTogglesBody.appendChild(item);
+  });
+}
+
+function forceRerender() {
+  state.renderStart = -1;
+  state.renderEnd = -1;
+  renderVisibleRows();
+}
+
+// === DATA PARSING & DETAIL MODAL ===
+function parseDataField(data) {
+  if (!data || !data.trim()) return { type: 'empty', summary: '(empty)', parsed: null };
+
+  if (data.startsWith('<!--') || data.includes('<!--')) {
+    const acceptMatch = data.match(/<!--\s*Accept Task:\s*'([^']+)'\s*-->/);
+    if (acceptMatch) return { type: 'comment', subtype: 'acceptTask', summary: 'Accept: ' + acceptMatch[1], parsed: { taskName: acceptMatch[1] } };
+
+    const undoMatch = data.match(/<!--\s*Undo Accept Task\(s\)/);
+    if (undoMatch) return { type: 'comment', subtype: 'undoAccept', summary: 'Undo Accept Task', parsed: {} };
+
+    const changeMatch = data.match(/<!--\s*Changed\s+'([^']+)'\s*\[([^\]]+)\]\s*to:\s*(.+?)\s*-->/);
+    if (changeMatch) return { type: 'comment', subtype: 'taskChange', summary: 'Change: ' + changeMatch[1] + ' → ' + changeMatch[3].trim(), parsed: { taskName: changeMatch[1], fromState: changeMatch[2], toState: changeMatch[3].trim() } };
+  }
+
+  if (data.includes('<mail')) {
+    try {
+      const xml = new DOMParser().parseFromString(data.replace(/<\?xml[^?]*\?>/, ''), 'text/xml');
+      const recipient = xml.querySelector('recipient')?.textContent || '';
+      const subject = xml.querySelector('subject')?.textContent || '';
+      const body = xml.querySelector('body')?.textContent || '';
+      return { type: 'mail', summary: 'Mail → ' + recipient + ': ' + subject, parsed: { recipient, subject, body: decodeXmlEntities(body) } };
+    } catch (e) {}
+  }
+
+  if (data.includes('<logIn')) {
+    try {
+      const xml = new DOMParser().parseFromString(data.replace(/<\?xml[^?]*\?>/, ''), 'text/xml');
+      const clientIP = xml.querySelector('clientIP')?.textContent || '';
+      const version = xml.querySelector('clientVersionAndBuild')?.textContent || '';
+      return { type: 'login', summary: 'Login from ' + clientIP + ', v' + version, parsed: { clientIP, version } };
+    } catch (e) {}
+  }
+
+  if (data.includes('<psFileIDs')) {
+    try {
+      const xml = new DOMParser().parseFromString(data.replace(/<\?xml[^?]*\?>/, ''), 'text/xml');
+      const oldId = xml.querySelector('oldPSFileID')?.textContent || '0';
+      const newId = xml.querySelector('newPSFileID')?.textContent || '0';
+      return { type: 'fileids', summary: 'File version ' + oldId + ' → ' + newId, parsed: { oldId, newId } };
+    } catch (e) {}
+  }
+
+  if (data.includes('<relatedObject')) {
+    try {
+      const xml = new DOMParser().parseFromString(data.replace(/<\?xml[^?]*\?>/, ''), 'text/xml');
+      const objType = xml.querySelector('type')?.textContent || '';
+      const id = xml.querySelector('id')?.textContent || '';
+      const name = xml.querySelector('name')?.textContent || '';
+      const role = xml.querySelector('role')?.textContent || '';
+      return { type: 'related', summary: objType + ' ' + (name || id) + ' (' + role + ')', parsed: { objType, id, name, role } };
+    } catch (e) {}
+  }
+
+  if (data.includes('<publicationImportExport')) {
+    try {
+      const xml = new DOMParser().parseFromString(data.replace(/<\?xml[^?]*\?>/, ''), 'text/xml');
+      const oldXml = xml.querySelector('oldXML')?.textContent || '';
+      const newXml = xml.querySelector('newXML')?.textContent || '';
+      return { type: 'config', summary: 'Config change (publication import/export)', parsed: { oldXml, newXml } };
+    } catch (e) {}
+  }
+
+  if (data.includes('<queryXML')) {
+    try {
+      const xml = new DOMParser().parseFromString(data.replace(/<\?xml[^?]*\?>/, ''), 'text/xml');
+      const oldXml = xml.querySelector('oldXML')?.textContent || '';
+      const newXml = xml.querySelector('newXML')?.textContent || '';
+      return { type: 'config', summary: 'Query definition change', parsed: { oldXml, newXml } };
+    } catch (e) {}
+  }
+
+  return { type: 'raw', summary: data.substring(0, 80), parsed: null };
+}
+
+function decodeXmlEntities(text) {
+  return text.replace(/&#10;/g, '\n').replace(/&#13;/g, '\r').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+}
+
+function showDetailModal(data, event) {
+  const parsed = parseDataField(data);
+  dom.detailModalTitle.textContent = 'Event Data';
+  dom.detailModalBody.innerHTML = '';
+
+  const badge = document.createElement('div');
+  badge.className = 'detail-type-badge ' + (parsed.type === 'comment' ? 'comment' : parsed.type);
+  const typeLabels = { mail: 'Email Notification', login: 'Login', fileids: 'File Version', related: 'Related Object', comment: 'Task Comment', config: 'Config Change', raw: 'Raw Data', empty: 'Empty' };
+  badge.textContent = typeLabels[parsed.type] || parsed.type;
+  dom.detailModalBody.appendChild(badge);
+
+  if (event) {
+    const ctx = document.createElement('div');
+    ctx.style.cssText = 'margin-bottom:14px; padding:8px 10px; background:#f8f9fa; border-radius:4px; font-size:12px; color:#666; display:flex; flex-wrap:wrap; gap:4px 16px;';
+    const fields = [['User', event.userName], ['Action', event.action], ['Object', event.objectName], ['Time', event.date]];
+    fields.forEach(([label, val]) => {
+      if (!val) return;
+      const s = document.createElement('span');
+      s.innerHTML = '<strong>' + label + ':</strong> ' + escapeHtml(val);
+      ctx.appendChild(s);
+    });
+    dom.detailModalBody.appendChild(ctx);
+  }
+
+  if (parsed.type === 'mail' && parsed.parsed) {
+    addDetailKV('Recipient', parsed.parsed.recipient);
+    addDetailKV('Subject', parsed.parsed.subject);
+    addDetailKV('Body', parsed.parsed.body, true);
+  } else if (parsed.type === 'login' && parsed.parsed) {
+    addDetailKV('Client IP', parsed.parsed.clientIP);
+    addDetailKV('Version', parsed.parsed.version);
+  } else if (parsed.type === 'fileids' && parsed.parsed) {
+    const div = document.createElement('div');
+    div.className = 'detail-kv';
+    div.innerHTML = '<div class="dk-label">File Version Change</div><div class="dk-value"><code>' + escapeHtml(parsed.parsed.oldId) + '</code><span class="detail-arrow">→</span><code>' + escapeHtml(parsed.parsed.newId) + '</code></div>';
+    dom.detailModalBody.appendChild(div);
+  } else if (parsed.type === 'related' && parsed.parsed) {
+    addDetailKV('Type', parsed.parsed.objType);
+    addDetailKV('ID', parsed.parsed.id);
+    if (parsed.parsed.name) addDetailKV('Name', parsed.parsed.name);
+    addDetailKV('Role', parsed.parsed.role);
+  } else if (parsed.type === 'comment' && parsed.parsed) {
+    if (parsed.parsed.taskName) addDetailKV('Task Name', parsed.parsed.taskName);
+    if (parsed.parsed.fromState) addDetailKV('From State', parsed.parsed.fromState);
+    if (parsed.parsed.toState) addDetailKV('To State', parsed.parsed.toState);
+  } else if (parsed.type === 'config' && parsed.parsed) {
+    if (parsed.parsed.oldXml) addDetailKV('Old Config', formatNestedXml(parsed.parsed.oldXml), false, true);
+    if (parsed.parsed.newXml) addDetailKV('New Config', formatNestedXml(parsed.parsed.newXml), false, true);
+  }
+
+  addDetailKV('Raw Data', data, false, true);
+
+  dom.detailModal.classList.add('visible');
+}
+
+function hideDetailModal() {
+  dom.detailModal.classList.remove('visible');
+}
+
+function addDetailKV(label, value, isBody, isMono) {
+  const div = document.createElement('div');
+  div.className = 'detail-kv';
+  const lbl = document.createElement('div');
+  lbl.className = 'dk-label';
+  lbl.textContent = label;
+  div.appendChild(lbl);
+
+  if (isBody) {
+    const body = document.createElement('div');
+    body.className = 'detail-body-text';
+    body.textContent = value;
+    div.appendChild(body);
+  } else {
+    const val = document.createElement('div');
+    val.className = 'dk-value' + (isMono ? ' mono' : '');
+    val.textContent = value;
+    div.appendChild(val);
+  }
+  dom.detailModalBody.appendChild(div);
+}
+
+function formatNestedXml(xmlStr) {
+  try {
+    const decoded = decodeXmlEntities(xmlStr);
+    const doc = new DOMParser().parseFromString(decoded, 'text/xml');
+    const serializer = new XMLSerializer();
+    const raw = serializer.serializeToString(doc.documentElement);
+    return raw.replace(/></g, '>\n<').replace(/(<[^/][^>]*>)/g, '\n$1').replace(/^\n/, '').trim();
+  } catch (e) {
+    return xmlStr;
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// === FILTER SYSTEM ===
+function populateFilterOptions() {
+  const opts = { userName: new Set(), clientType: new Set(), objectType: new Set(), action: new Set(), publicationName: new Set() };
+  for (const evt of state.allEvents) {
+    if (evt.userName) opts.userName.add(evt.userName);
+    if (evt.clientType) opts.clientType.add(evt.clientType);
+    if (evt.objectType) opts.objectType.add(evt.objectType);
+    if (evt.action) opts.action.add(evt.action);
+    if (evt.publicationName) opts.publicationName.add(evt.publicationName);
+  }
+  for (const key of Object.keys(opts)) {
+    state.filterOptions[key] = Array.from(opts[key]).sort((a, b) => a.localeCompare(b));
+  }
+}
+
+function applyFilters() {
+  const f = state.filters;
+  state.filteredEvents = state.allEvents.filter(evt => {
+    const dateStr = evt.date.substring(0, 10);
+    if (f.dateFrom && dateStr < f.dateFrom) return false;
+    if (f.dateTo && dateStr > f.dateTo) return false;
+
+    const timeStr = evt.date.substring(11, 19).replace(',', '');
+    if (f.timeFrom && timeStr < f.timeFrom) return false;
+    if (f.timeTo && timeStr > f.timeTo) return false;
+
+    if (f.userName.length && !f.userName.includes(evt.userName)) return false;
+    if (f.clientType.length && !f.clientType.includes(evt.clientType)) return false;
+    if (f.objectType.length && !f.objectType.includes(evt.objectType)) return false;
+    if (f.action.length && !f.action.includes(evt.action)) return false;
+    if (f.publicationName.length && !f.publicationName.includes(evt.publicationName)) return false;
+
+    if (f.sessionID && evt.sessionID !== f.sessionID) return false;
+
+    if (f.freeText) {
+      const search = f.freeText.toLowerCase();
+      const cols = getVisibleColumns();
+      if (!cols.some(col => (evt[col.id] || '').toLowerCase().includes(search))) return false;
+    }
+    return true;
+  });
+  applySort();
+  buildDisplayRows();
+  updateRowCounts();
+  scrollToTop();
+  renderVisibleRows();
+}
+
+function clearAllFilters() {
+  state.filters = { dateFrom: '', dateTo: '', timeFrom: '', timeTo: '', userName: [], clientType: [], objectType: [], action: [], publicationName: [], sessionID: '', freeText: '' };
+  clearFilterInputs();
+  renderMultiSelects();
+  applyFilters();
+}
+
+function clearFilterInputs() {
+  if (dom.filterDateFrom) dom.filterDateFrom.value = '';
+  if (dom.filterDateTo) dom.filterDateTo.value = '';
+  if (dom.filterTimeFrom) dom.filterTimeFrom.value = '';
+  if (dom.filterTimeTo) dom.filterTimeTo.value = '';
+  if (dom.filterSessionID) dom.filterSessionID.value = '';
+  if (dom.filterFreeText) dom.filterFreeText.value = '';
+}
+
+// === MULTI-SELECT COMPONENT ===
+const multiSelectInstances = {};
+
+function createMultiSelect(containerId, filterKey) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  const values = state.filterOptions[filterKey] || [];
+  const selected = state.filters[filterKey] || [];
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'multi-select-btn';
+  updateMultiSelectBtnText(btn, filterKey, selected, values);
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'multi-select-dropdown';
+
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.className = 'multi-select-search';
+  searchInput.placeholder = 'Search...';
+
+  const actions = document.createElement('div');
+  actions.className = 'multi-select-actions';
+  const selectAll = document.createElement('a');
+  selectAll.textContent = 'Select All';
+  const clearAll = document.createElement('a');
+  clearAll.textContent = 'Clear';
+  actions.appendChild(selectAll);
+  actions.appendChild(clearAll);
+
+  const list = document.createElement('div');
+  list.className = 'multi-select-list';
+
+  values.forEach(val => {
+    const item = document.createElement('label');
+    item.className = 'multi-select-item';
+    item.dataset.value = val.toLowerCase();
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = selected.includes(val);
+    cb.dataset.val = val;
+    item.appendChild(cb);
+    item.appendChild(document.createTextNode(val || '(empty)'));
+    list.appendChild(item);
+  });
+
+  dropdown.appendChild(searchInput);
+  dropdown.appendChild(actions);
+  dropdown.appendChild(list);
+  container.appendChild(btn);
+  container.appendChild(dropdown);
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllMultiSelects(containerId);
+    dropdown.classList.toggle('open');
+    if (dropdown.classList.contains('open')) {
+      searchInput.value = '';
+      searchInput.focus();
+      list.querySelectorAll('.multi-select-item').forEach(i => i.classList.remove('hidden'));
+    }
+  });
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.toLowerCase();
+    list.querySelectorAll('.multi-select-item').forEach(item => {
+      item.classList.toggle('hidden', q && !item.dataset.value.includes(q));
+    });
+  });
+  searchInput.addEventListener('click', (e) => e.stopPropagation());
+
+  list.addEventListener('change', () => {
+    const checked = Array.from(list.querySelectorAll('input:checked')).map(cb => cb.dataset.val);
+    state.filters[filterKey] = checked;
+    updateMultiSelectBtnText(btn, filterKey, checked, values);
+    applyFilters();
+  });
+
+  selectAll.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const visibleItems = list.querySelectorAll('.multi-select-item:not(.hidden) input');
+    visibleItems.forEach(cb => cb.checked = true);
+    list.dispatchEvent(new Event('change'));
+  });
+
+  clearAll.addEventListener('click', (e) => {
+    e.stopPropagation();
+    list.querySelectorAll('input').forEach(cb => cb.checked = false);
+    list.dispatchEvent(new Event('change'));
+  });
+
+  multiSelectInstances[containerId] = { btn, dropdown, list, filterKey };
+}
+
+function updateMultiSelectBtnText(btn, filterKey, selected, values) {
+  if (selected.length === 0) {
+    btn.textContent = 'All';
+    btn.classList.remove('has-selection');
+  } else if (selected.length === values.length) {
+    btn.textContent = 'All';
+    btn.classList.remove('has-selection');
+    state.filters[filterKey] = [];
+  } else if (selected.length === 1) {
+    btn.textContent = selected[0];
+    btn.classList.add('has-selection');
+  } else {
+    btn.textContent = selected.length + ' selected';
+    btn.classList.add('has-selection');
+  }
+}
+
+function closeAllMultiSelects(exceptId) {
+  Object.keys(multiSelectInstances).forEach(id => {
+    if (id !== exceptId) {
+      multiSelectInstances[id].dropdown.classList.remove('open');
+    }
+  });
+}
+
+function renderMultiSelects() {
+  createMultiSelect('filterUserName', 'userName');
+  createMultiSelect('filterClientType', 'clientType');
+  createMultiSelect('filterObjectType', 'objectType');
+  createMultiSelect('filterAction', 'action');
+  createMultiSelect('filterPublication', 'publicationName');
+}
+
+// === UI UPDATES ===
+function updateStatusLine() {
+  const events = state.allEvents;
+  dom.fileCount.textContent = state.filesMeta.length;
+  dom.eventCount.textContent = events.length.toLocaleString();
+
+  if (events.length > 0) {
+    const first = events[0].date.substring(0, 10);
+    const last = events[events.length - 1].date.substring(0, 10);
+    dom.dateRange.textContent = first + ' to ' + last;
+  } else {
+    dom.dateRange.textContent = '—';
+  }
+}
+
+function updateRowCounts() {
+  dom.showingCount.textContent = state.displayRows.length.toLocaleString();
+  dom.totalCount.textContent = state.allEvents.length.toLocaleString();
+}
+
+function updateUI() {
+  const hasData = state.allEvents.length > 0;
+  dom.statusLine.classList.toggle('visible', hasData);
+  dom.tableSection.classList.toggle('visible', hasData);
+  dom.footer.classList.toggle('visible', hasData);
+
+  if (!hasData) {
+    dom.uploadSection.style.display = '';
+    dom.uploadArea.classList.remove('has-files');
+  } else {
+    dom.uploadArea.classList.add('has-files');
+    dom.uploadArea.querySelector('h2').textContent = 'Add More Files';
+    dom.uploadArea.querySelector('p').textContent = 'Drag and drop additional k4_event*.log files';
+    collapseUploadArea();
+  }
+
+  updateRowCounts();
+}
+
+function collapseUploadArea() {
+  dom.uploadSection.style.display = 'none';
+}
+
+function expandUploadArea() {
+  dom.uploadSection.style.display = '';
+}
+
+function showLoading(show) {
+  dom.loadingOverlay.classList.toggle('visible', show);
+}
+
+function showStatusMessage(msg, type) {
+  dom.toast.textContent = msg;
+  dom.toast.className = 'toast ' + (type || '') + ' visible';
+  clearTimeout(dom.toast._timer);
+  dom.toast._timer = setTimeout(() => { dom.toast.classList.remove('visible'); }, 3000);
+}
+
+// === EVENT LISTENERS ===
+function init() {
+  cacheDom();
+  loadUserLabels();
+
+  // File upload
+  dom.uploadArea.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') dom.fileInput.click();
+  });
+  dom.browseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dom.fileInput.click();
+  });
+  dom.fileInput.addEventListener('change', () => {
+    if (dom.fileInput.files.length > 0) handleFiles(dom.fileInput.files);
+    dom.fileInput.value = '';
+  });
+
+  // Drag and drop
+  dom.uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dom.uploadArea.classList.add('dragover');
+  });
+  dom.uploadArea.addEventListener('dragleave', () => {
+    dom.uploadArea.classList.remove('dragover');
+  });
+  dom.uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dom.uploadArea.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+  });
+
+  // Also support drop on the whole page when data is loaded
+  document.body.addEventListener('dragover', (e) => {
+    if (state.allEvents.length > 0) e.preventDefault();
+  });
+  document.body.addEventListener('drop', (e) => {
+    if (state.allEvents.length > 0) {
+      e.preventDefault();
+      if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+    }
+  });
+
+  // Status bar buttons
+  dom.addMoreBtn.addEventListener('click', expandUploadArea);
+  dom.resetBtn.addEventListener('click', resetAll);
+
+  // Filters
+  dom.filterDateFrom.addEventListener('change', () => { state.filters.dateFrom = dom.filterDateFrom.value; applyFilters(); });
+  dom.filterDateTo.addEventListener('change', () => { state.filters.dateTo = dom.filterDateTo.value; applyFilters(); });
+  dom.filterTimeFrom.addEventListener('change', () => { state.filters.timeFrom = dom.filterTimeFrom.value; applyFilters(); });
+  dom.filterTimeTo.addEventListener('change', () => { state.filters.timeTo = dom.filterTimeTo.value; applyFilters(); });
+  dom.filterSessionID.addEventListener('input', () => { state.filters.sessionID = dom.filterSessionID.value.trim(); applyFilters(); });
+
+  let freeTextTimer = null;
+  dom.filterFreeText.addEventListener('input', () => {
+    clearTimeout(freeTextTimer);
+    freeTextTimer = setTimeout(() => {
+      state.filters.freeText = dom.filterFreeText.value.trim();
+      applyFilters();
+    }, 300);
+  });
+
+  dom.clearFiltersBtn.addEventListener('click', clearAllFilters);
+
+  document.addEventListener('click', () => closeAllMultiSelects());
+
+  // Grouping controls
+  dom.groupingToggle.addEventListener('change', () => {
+    state.groupingEnabled = dom.groupingToggle.checked;
+    state.expandedGroups.clear();
+    buildDisplayRows();
+    scrollToTop();
+    renderVisibleRows();
+  });
+  dom.groupingSlider.addEventListener('input', () => {
+    state.groupingWindowSec = parseInt(dom.groupingSlider.value);
+    dom.groupingWindowVal.textContent = state.groupingWindowSec + 's';
+  });
+  dom.groupingSlider.addEventListener('change', () => {
+    state.groupingWindowSec = parseInt(dom.groupingSlider.value);
+    dom.groupingWindowVal.textContent = state.groupingWindowSec + 's';
+    state.expandedGroups.clear();
+    buildDisplayRows();
+    scrollToTop();
+    renderVisibleRows();
+  });
+
+  // Settings toggles
+  dom.localTimeToggle.addEventListener('change', () => {
+    state.showLocalTime = dom.localTimeToggle.checked;
+    forceRerender();
+  });
+  dom.sessionBandingToggle.addEventListener('change', () => {
+    state.sessionBanding = dom.sessionBandingToggle.checked;
+    forceRerender();
+  });
+
+  // Column toggles
+  dom.columnTogglesHeader.addEventListener('click', () => {
+    dom.columnToggles.classList.toggle('expanded');
+  });
+
+  // Table header clicks (sort)
+  dom.tableHeaderRow.addEventListener('click', handleHeaderClick);
+
+  // Virtual scroll
+  dom.scrollContainer.addEventListener('scroll', onScroll);
+
+  // Help modal
+  dom.helpBtn.addEventListener('click', () => dom.helpModal.classList.add('visible'));
+  dom.helpModalClose.addEventListener('click', () => dom.helpModal.classList.remove('visible'));
+  dom.helpModal.addEventListener('click', (e) => {
+    if (e.target === dom.helpModal) dom.helpModal.classList.remove('visible');
+  });
+
+  // Export
+  dom.exportBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (state.groupingEnabled) {
+      dom.exportMenu.classList.toggle('visible');
+    } else {
+      exportFlat();
+    }
+  });
+  dom.exportFlat.addEventListener('click', () => { dom.exportMenu.classList.remove('visible'); exportFlat(); });
+  dom.exportSummary.addEventListener('click', () => { dom.exportMenu.classList.remove('visible'); exportSummary(); });
+  dom.exportDetails.addEventListener('click', () => { dom.exportMenu.classList.remove('visible'); exportDetails(); });
+  document.addEventListener('click', () => dom.exportMenu.classList.remove('visible'));
+
+  // Labels modal
+  dom.manageLabelsBtn.addEventListener('click', showLabelsModal);
+  dom.labelsModalClose.addEventListener('click', hideLabelsModal);
+  dom.labelsModal.addEventListener('click', (e) => {
+    if (e.target === dom.labelsModal) hideLabelsModal();
+  });
+  dom.exportLabelsBtn.addEventListener('click', exportLabels);
+  dom.importLabelsBtn.addEventListener('click', () => dom.importLabelsInput.click());
+  dom.importLabelsInput.addEventListener('change', () => {
+    if (dom.importLabelsInput.files.length > 0) importLabels(dom.importLabelsInput.files[0]);
+    dom.importLabelsInput.value = '';
+  });
+
+  // Detail modal
+  dom.detailModalClose.addEventListener('click', hideDetailModal);
+  dom.detailModal.addEventListener('click', (e) => {
+    if (e.target === dom.detailModal) hideDetailModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { hideDetailModal(); hideLabelsModal(); dom.helpModal.classList.remove('visible'); }
+  });
+
+  // Window resize
+  window.addEventListener('resize', () => {
+    if (state.allEvents.length > 0) forceRerender();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+<div class="toast" id="toast"></div>
+</body>
+</html>
