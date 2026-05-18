@@ -1331,13 +1331,21 @@ function computeGroups(events, windowMs) {
 
   while (i < byTime.length) {
     const anchor = byTime[i];
+
+    if (anchor.objectType !== 'OBJECT_VARIANT') {
+      result.push({ type: 'event', data: anchor });
+      i++;
+      continue;
+    }
+
     const children = [anchor];
     let j = i + 1;
     let lastTs = anchor.timestampMs;
 
     while (j < byTime.length) {
       const candidate = byTime[j];
-      if (candidate.sessionID === anchor.sessionID &&
+      if (candidate.objectType === 'OBJECT_VARIANT' &&
+          candidate.sessionID === anchor.sessionID &&
           candidate.action === anchor.action &&
           (candidate.timestampMs - lastTs) <= windowMs) {
         children.push(candidate);
